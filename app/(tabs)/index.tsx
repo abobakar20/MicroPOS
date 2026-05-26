@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ProductCard } from '../../components/ProductCard';
 import { CartItemRow } from '../../components/CartItemRow';
 import { useCartStore } from '../../store/useCartStore';
@@ -29,7 +30,11 @@ export default function POSScreen() {
   const [search, setSearch] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<Order['paymentMethod']>('cash');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [discountInput, setDiscountInput] = useState('');
+  const [scanned, setScanned] = useState(false);
+
+  const [permission, requestPermission] = useCameraPermissions();
 
   const { products } = useProductStore();
   const { items, addItem, removeItem, updateQuantity, discount, setDiscount, clearCart, getTotal, getFinalTotal } = useCartStore();
@@ -40,6 +45,35 @@ export default function POSScreen() {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
+
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
+    const product = products.find((p) => p.barcode === data);
+    if (product) {
+      addItem(product);
+      setShowScanner(false);
+      Alert.alert('✅ Added', `${product.emoji} ${product.name} added to cart!`, [
+        { text: 'OK', onPress: () => setScanned(false) },
+      ]);
+    } else {
+      Alert.alert('Not Found', `No product with barcode: ${data}`, [
+        { text: 'OK', onPress: () => setScanned(false) },
+      ]);
+    }
+  };
+
+  const openScanner = async () => {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert('Permission Required', 'Camera permission is needed to scan barcodes.');
+        return;
+      }
+    }
+    setScanned(false);
+    setShowScanner(true);
+  };
 
   const handleCheckout = () => {
     if (items.length === 0) {
@@ -69,7 +103,7 @@ export default function POSScreen() {
       {items.length === 0 ? (
         <View style={styles.emptyCart}>
           <Text style={styles.emptyCartText}>No items yet</Text>
-          <Text style={styles.emptyCartSub}>Tap products to add</Text>
+          <Text style={styles.emptyCartSub}>Tap products or scan barcode</Text>
         </View>
       ) : (
         <ScrollView style={styles.cartScroll} showsVerticalScrollIndicator={false}>
@@ -134,13 +168,19 @@ export default function POSScreen() {
       <View style={styles.body}>
         {/* Products Section */}
         <View style={styles.productsSection}>
-          <TextInput
-            style={styles.search}
-            placeholder="Search products..."
-            value={search}
-            onChangeText={setSearch}
-            placeholderTextColor={Colors.textMuted}
-          />
+          {/* Search + Scan row */}
+          <View style={styles.searchRow}>
+            <TextInput
+              style={styles.search}
+              placeholder="Search products..."
+              value={search}
+              onChangeText={setSearch}
+              placeholderTextColor={Colors.textMuted}
+            />
+            <TouchableOpacity style={styles.scanBtn} onPress={openScanner}>
+              <Text style={styles.scanBtnText}>📷</Text>
+            </TouchableOpacity>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -175,12 +215,26 @@ export default function POSScreen() {
         </View>
 
         {/* Cart Section */}
-        {isTablet ? (
-          cartContent
-        ) : (
-          <View style={styles.cartMobile}>{cartContent}</View>
-        )}
+        {isTablet ? cartContent : <View style={styles.cartMobile}>{cartContent}</View>}
       </View>
+
+      {/* Barcode Scanner Modal */}
+      <Modal visible={showScanner} animationType="slide">
+        <View style={styles.scannerContainer}>
+          <CameraView
+            style={StyleSheet.absoluteFillObject}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+            barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'code128', 'code39', 'qr'] }}
+          />
+          <View style={styles.scannerOverlay}>
+            <View style={styles.scannerFrame} />
+            <Text style={styles.scannerHint}>Align barcode within the frame</Text>
+          </View>
+          <TouchableOpacity style={styles.closeScannerBtn} onPress={() => setShowScanner(false)}>
+            <Text style={styles.closeScannerText}>✕ Close</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* Payment Modal */}
       <Modal visible={showPaymentModal} transparent animationType="slide">
@@ -229,7 +283,9 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
   body: { flex: 1, flexDirection: isTablet ? 'row' : 'column' },
   productsSection: { flex: isTablet ? 2 : 1.4, padding: 12 },
+  searchRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   search: {
+    flex: 1,
     backgroundColor: Colors.surface,
     borderRadius: 10,
     paddingHorizontal: 14,
@@ -237,9 +293,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 10,
     color: Colors.text,
   },
+  scanBtn: {
+    width: 44,
+    height: 44,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanBtnText: { fontSize: 20 },
   categories: { marginBottom: 10 },
   catChip: {
     paddingHorizontal: 14,
@@ -289,17 +353,38 @@ const styles = StyleSheet.create({
   finalRow: { marginBottom: 8, marginTop: 4 },
   finalLabel: { fontSize: 16, fontWeight: '700', color: Colors.text },
   finalValue: { fontSize: 18, fontWeight: '800', color: Colors.primary },
-  checkoutBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 6,
-  },
+  checkoutBtn: { backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 6 },
   checkoutBtnDisabled: { backgroundColor: Colors.textMuted },
   checkoutText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   clearBtn: { alignItems: 'center', paddingVertical: 4 },
   clearBtnText: { color: Colors.danger, fontSize: 13, fontWeight: '500' },
+  // Scanner
+  scannerContainer: { flex: 1, backgroundColor: '#000' },
+  scannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scannerFrame: {
+    width: 240,
+    height: 160,
+    borderWidth: 3,
+    borderColor: Colors.primary,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+  },
+  scannerHint: { color: '#fff', fontSize: 14, marginTop: 20, textShadowColor: '#000', textShadowRadius: 4 },
+  closeScannerBtn: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  closeScannerText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  // Payment Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: Colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 4, textAlign: 'center' },

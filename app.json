@@ -14,14 +14,18 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.micropos.app"
+      "bundleIdentifier": "com.micropos.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan product barcodes for fast checkout."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#6366f1"
       },
-      "package": "com.micropos.app"
+      "package": "com.micropos.app",
+      "permissions": ["CAMERA"]
     },
     "web": {
       "bundler": "metro",
@@ -31,9 +35,9 @@
     "plugins": [
       "expo-router",
       [
-        "@react-native-async-storage/async-storage",
+        "expo-camera",
         {
-          "exclude": ["expo-secure-store"]
+          "cameraPermission": "Allow MicroPOS to access your camera to scan product barcodes."
         }
       ]
     ]
