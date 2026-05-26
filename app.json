@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "MicroPOS",
+    "slug": "micropos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6366f1"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.micropos.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6366f1"
+      },
+      "package": "com.micropos.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "micropos",
+    "plugins": [
+      "expo-router",
+      [
+        "@react-native-async-storage/async-storage",
+        {
+          "exclude": ["expo-secure-store"]
+        }
+      ]
+    ]
+  }
+}
