@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "MicroPOS",
+    "slug": "micropos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#6366f1"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.micropos.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan product barcodes for fast checkout."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#6366f1"
+      },
+      "package": "com.micropos.app",
+      "permissions": ["CAMERA"]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "scheme": "micropos",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow MicroPOS to access your camera to scan product barcodes."
+        }
+      ]
+    ]
+  }
+}
